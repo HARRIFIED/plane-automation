@@ -8,7 +8,7 @@ const PROJECTS = [
   { id: '22222222-2222-2222-2222-222222222222', identifier: 'PLAT', name: 'Platform Infrastructure' },
 ] as PlaneProject[];
 
-const config = { plane: { workspaceSlug: 'sagegrey' }, lookupCacheTtlSeconds: 300 } as AppConfigService;
+const config = { plane: { workspaceSlug: 'acme' }, lookupCacheTtlSeconds: 300 } as AppConfigService;
 
 function makeResolver(listProjects = jest.fn().mockResolvedValue(PROJECTS)) {
   const plane = { listProjects } as unknown as PlaneApiClient;

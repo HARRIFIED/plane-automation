@@ -76,8 +76,8 @@ export const LABELS = {
 };
 
 export const MEMBERS = {
-  ada: member('user-ada', 'Ada', 'Lovelace', 'ada@sagegreytech.com', 'ada'),
-  grace: member('user-grace', 'Grace', 'Hopper', 'grace@sagegreytech.com', 'grace'),
+  ada: member('user-ada', 'Ada', 'Lovelace', 'ada@example.com', 'ada'),
+  grace: member('user-grace', 'Grace', 'Hopper', 'grace@example.com', 'grace'),
 };
 
 export const MODULES = {

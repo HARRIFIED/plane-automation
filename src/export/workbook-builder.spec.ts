@@ -24,7 +24,7 @@ function row(overrides: Partial<ExportRow> = {}): ExportRow {
     targetDate: null,
     estimate: '3',
     createdBy: 'Ada Lovelace',
-    link: 'https://plane.sagegreytech.com/sagegrey/projects/project-1/issues/item-1',
+    link: 'https://plane.example.com/acme/projects/project-1/issues/item-1',
     ...overrides,
   };
 }
@@ -121,7 +121,7 @@ describe('buildWorkbook', () => {
 
     expect(cell?.value).toMatchObject({
       text: 'Open',
-      hyperlink: 'https://plane.sagegreytech.com/sagegrey/projects/project-1/issues/item-1',
+      hyperlink: 'https://plane.example.com/acme/projects/project-1/issues/item-1',
     });
   });
 

@@ -6,10 +6,10 @@ import { PlaneApiClient } from './plane-api.client';
 import type { FetchLike } from './plane-api.client';
 
 const config: PlaneClientConfig = {
-  apiUrl: 'https://plane.sagegreytech.com/api/v1',
-  appUrl: 'https://plane.sagegreytech.com',
+  apiUrl: 'https://plane.example.com/api/v1',
+  appUrl: 'https://plane.example.com',
   apiKey: 'test-key',
-  workspaceSlug: 'sagegrey',
+  workspaceSlug: 'acme',
   rateLimitPerMinute: 1000, // effectively off; the throttle has its own tests
   pageSize: 100,
   maxPages: 10,
@@ -71,7 +71,7 @@ describe('PlaneApiClient', () => {
       await clientWith(fetchFn).listLabels('project-1');
 
       expect(fetchFn.mock.calls[0]![0]).toContain(
-        '/api/v1/workspaces/sagegrey/projects/project-1/labels/',
+        '/api/v1/workspaces/acme/projects/project-1/labels/',
       );
     });
 
@@ -198,7 +198,7 @@ describe('PlaneApiClient', () => {
 
       expect(item.id).toBe('uuid-1');
       // Uppercased, and no project UUID needed.
-      expect(fetchFn.mock.calls[0]![0]).toContain('/workspaces/sagegrey/work-items/PROJ-123/');
+      expect(fetchFn.mock.calls[0]![0]).toContain('/workspaces/acme/work-items/PROJ-123/');
     });
 
     it('rejects a malformed identifier without spending a request', async () => {
@@ -291,7 +291,7 @@ describe('PlaneApiClient', () => {
     it('builds a work item URL against the app host, not the API host', () => {
       const url = clientWith(jest.fn()).workItemUrl('project-1', 'item-1');
 
-      expect(url).toBe('https://plane.sagegreytech.com/sagegrey/projects/project-1/issues/item-1');
+      expect(url).toBe('https://plane.example.com/acme/projects/project-1/issues/item-1');
     });
   });
 

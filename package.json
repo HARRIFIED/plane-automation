@@ -1,9 +1,26 @@
 {
   "name": "plane-automation",
   "version": "0.1.0",
-  "private": true,
-  "description": "Internal Plane workspace tooling: filtered Excel exports (Phase 1) and GitHub merge driven state transitions (Phase 2).",
-  "license": "UNLICENSED",
+  "description": "Export Plane work items to formatted Excel, with real filters. Works with Plane Cloud and self-hosted.",
+  "license": "MIT",
+  "author": "Harrison Ikpefua",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HARRIFIED/plane-automation.git"
+  },
+  "bugs": {
+    "url": "https://github.com/HARRIFIED/plane-automation/issues"
+  },
+  "homepage": "https://github.com/HARRIFIED/plane-automation#readme",
+  "keywords": [
+    "plane",
+    "plane.so",
+    "excel",
+    "xlsx",
+    "export",
+    "project-management",
+    "nestjs"
+  ],
   "engines": {
     "node": ">=20.11"
   },

@@ -19,5 +19,6 @@ tmp/
 .DS_Store
 Thumbs.db
 .env
+
+# The original internal brief — not for publication
 motive.md
-plane-api-findings.md

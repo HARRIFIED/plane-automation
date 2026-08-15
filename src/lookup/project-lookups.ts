@@ -52,7 +52,7 @@ function unknown(kind: string, id: Uuid): string {
  * Indexed, queryable view over a project's lookup tables.
  *
  * Two jobs: turn UUIDs into names for the export, and turn names back into UUIDs for the
- * filter engine, which receives human input like "In Progress" or "ada@sagegreytech.com".
+ * filter engine, which receives human input like "In Progress" or "ada@example.com".
  *
  * On unresolvable ids — these happen routinely and are not bugs. `projects/{id}/members/`
  * returns *current* members, but a work item keeps its assignee reference after someone

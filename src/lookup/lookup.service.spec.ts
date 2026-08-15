@@ -31,7 +31,7 @@ function makePlane(overrides: Partial<PlaneStub> = {}) {
 }
 
 const config = {
-  plane: { workspaceSlug: 'sagegrey' },
+  plane: { workspaceSlug: 'acme' },
   lookupCacheTtlSeconds: 300,
 } as AppConfigService;
 

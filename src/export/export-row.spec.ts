@@ -9,7 +9,7 @@ const options = {
   lookups: makeLookups(),
   membership: MEMBERSHIP,
   workItemUrl: (projectId: string, workItemId: string) =>
-    `https://plane.sagegreytech.com/sagegrey/projects/${projectId}/issues/${workItemId}`,
+    `https://plane.example.com/acme/projects/${projectId}/issues/${workItemId}`,
 };
 
 function rowFor(id: string) {
@@ -82,7 +82,7 @@ describe('buildRow', () => {
 
   it('builds an absolute link to the item in Plane', () => {
     expect(rowFor('item-1').link).toBe(
-      'https://plane.sagegreytech.com/sagegrey/projects/project-1/issues/item-1',
+      'https://plane.example.com/acme/projects/project-1/issues/item-1',
     );
   });
 

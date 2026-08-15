@@ -43,7 +43,7 @@ describe('resolveFilter', () => {
 
   describe('assignees', () => {
     it('resolves by email, handle and full name', () => {
-      expect([...(resolveFilter({ assignees: ['ada@sagegreytech.com'] }, lookups).assigneeIds ?? [])]).toEqual([
+      expect([...(resolveFilter({ assignees: ['ada@example.com'] }, lookups).assigneeIds ?? [])]).toEqual([
         MEMBERS.ada.id,
       ]);
       expect([...(resolveFilter({ assignees: ['grace'] }, lookups).assigneeIds ?? [])]).toEqual([MEMBERS.grace.id]);

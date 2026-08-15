@@ -20,8 +20,8 @@ export const envSchema = z.object({
 
   /**
    * Root of the Plane REST API, including the version prefix.
-   * We run self-hosted Plane Community v1.3.0, so this is our own domain rather
-   * than api.plane.so. See docs/plane-api-findings.md.
+   * `https://api.plane.so/api/v1` on Plane Cloud, or your own host when self-hosting.
+   * Never hardcoded, because the two differ. See docs/plane-api-findings.md.
    */
   PLANE_API_URL: url(),
 
@@ -63,10 +63,10 @@ export const envSchema = z.object({
    */
   LOOKUP_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
 
-  /** Required from step 7 (filter presets). Optional until then. */
+  /** Not used yet. Reserved for saved filter presets. */
   DATABASE_URL: z.string().url().optional(),
 
-  /** Required from step 3 (lookup caching). Falls back to an in-memory cache when unset. */
+  /** Optional. Falls back to an in-memory cache when unset — see docs/setup.md. */
   REDIS_URL: z.string().url().optional(),
 });
 

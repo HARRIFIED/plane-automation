@@ -42,8 +42,8 @@ const tables: ProjectLookupTables = {
     { id: 'label-bug', name: 'bug', color: '#f00', description: '', parent: null, sort_order: 1, project: 'project-1', workspace: 'workspace-1' } as PlaneLabel,
   ],
   members: [
-    member({ id: 'user-ada', first_name: 'Ada', last_name: 'Lovelace', email: 'ada@sagegreytech.com', display_name: 'ada' }),
-    member({ id: 'user-handle', display_name: 'grace', email: 'grace@sagegreytech.com' }),
+    member({ id: 'user-ada', first_name: 'Ada', last_name: 'Lovelace', email: 'ada@example.com', display_name: 'ada' }),
+    member({ id: 'user-handle', display_name: 'grace', email: 'grace@example.com' }),
     member({ id: 'user-email-only', email: 'contractor@example.com' }),
   ],
   modules: [{ id: 'module-1', name: 'Billing' } as PlaneProjectModule],
@@ -124,7 +124,7 @@ describe('ProjectLookups', () => {
     });
 
     it('matches a person by email, handle, full name or first name', () => {
-      expect(lookups.findMembers('ada@sagegreytech.com').map((m) => m.id)).toEqual(['user-ada']);
+      expect(lookups.findMembers('ada@example.com').map((m) => m.id)).toEqual(['user-ada']);
       expect(lookups.findMembers('ada').map((m) => m.id)).toEqual(['user-ada']);
       expect(lookups.findMembers('Ada Lovelace').map((m) => m.id)).toEqual(['user-ada']);
       expect(lookups.findMembers('grace').map((m) => m.id)).toEqual(['user-handle']);
