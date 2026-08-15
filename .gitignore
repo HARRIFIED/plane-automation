@@ -1,0 +1,21 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local config — never commit a Plane API key
+.env
+.env.local
+.env.*.local
+
+# Generated exports
+*.xlsx
+out/
+tmp/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.env
