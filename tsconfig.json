@@ -14,6 +14,12 @@
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
+    // Declared explicitly rather than relying on TypeScript auto-including everything under
+    // node_modules/@types. Auto-inclusion works for `tsc` but editors resolve it inconsistently,
+    // which shows up as "Cannot find name 'describe'" in spec files even when @types/jest is
+    // installed. tsconfig.build.json narrows this back to ["node"] so the jest globals cannot
+    // leak into production code.
+    "types": ["node", "jest"],
     "strict": true,
     "strictNullChecks": true,
     "noImplicitAny": true,

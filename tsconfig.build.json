@@ -1,4 +1,9 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "dist", "**/*.spec.ts", "test"]
+  "compilerOptions": {
+    // No jest globals in the shipped build: `describe` or `expect` left in src/ should fail
+    // the build rather than compile quietly.
+    "types": ["node"]
+  },
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.fixtures.ts", "test"]
 }

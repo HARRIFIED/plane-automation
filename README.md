@@ -11,14 +11,6 @@ and Production off merge events rather than off somebody remembering. The Plane 
 designed with it in mind: the write methods are declared on the interface and throw until
 Phase 2 lands.
 
-## Target instance
-
-We run **self-hosted Plane Community v1.3.0** at `https://plane.sagegreytech.com`, not Plane
-Cloud. This matters more than it sounds — the public docs at developers.plane.so describe Cloud,
-which is ahead of us, and several documented endpoints do not exist on 1.3.0.
-
-Everything version specific is recorded in **[docs/plane-api-findings.md](docs/plane-api-findings.md)**.
-Read it before changing anything in `src/plane/`.
 
 ## Quick start
 
@@ -89,20 +81,3 @@ nothing about spreadsheets; Phase 2 consumes the same client to write state chan
 5. ~~Excel generation~~
 6. ~~REST endpoint and CLI~~
 7. Filter presets — the only step left
-
-## Things worth knowing before you touch the client
-
-Three behaviours of Plane 1.3.0 shape the design. All three are commented at the point of use,
-but they are the ones most likely to bite:
-
-- **The cursor is offset based**, not a snapshot. Pages can shift while you read them, so list
-  calls sort by a stable key and deduplicate by id, then reconcile against the server's count.
-- **Module and cycle are not on the work item.** Membership only reads in reverse, one call per
-  module and per cycle, which is why those lookups are lazy.
-- **`projects/{id}/members/` returns a bare array**, not the pagination envelope every other list
-  endpoint uses.
-
-And one about the data rather than the API: **an assignee is not always a current member.**
-`projects/{id}/members/` returns who is in the project *now*, but a work item keeps its assignee
-reference after that person leaves. Every resolver degrades to `Unknown user (a1b2c3d4)` rather
-than `undefined`, and reports what it could not resolve so the export can say why.

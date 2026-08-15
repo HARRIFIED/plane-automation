@@ -274,7 +274,21 @@ recommend.
 DRF's `SimpleRateThrottle` returns 429 with a `Retry-After` header derived from the throttle window,
 so the brief's requirement to respect `Retry-After` is exactly right and will work as expected.
 
-### 6.3 Version drift
+### 6.3 Verify the response shape, not just that the route exists
+
+Twice now an endpoint has been wired up correctly by path and still been wrong, because this API
+does not keep to one response convention:
+
+- `projects/{id}/members/` returns a **bare array** where everything around it returns a
+  pagination envelope (§3.5 context, and the client comments say so at the call site).
+- `projects/{id}/estimates/` returns a **single object** and **404s when unconfigured** (§3.7).
+
+Checking the URL conf only proves a route is registered. Before adding a client method, read the
+view in `apps/api/plane/api/views/*.py` at the **v1.3.0 tag** and confirm three things: whether
+it paginates, what it returns when the underlying record is absent, and whether the serializer
+excludes fields the model has (`description_stripped` is the trap — §2.1).
+
+### 6.4 Version drift
 
 Every finding here is pinned to v1.3.0. Upgrading — even to 1.3.1 — is worth a re-read of this
 document, particularly §2.1, §2.2 and §4. The `*-lite` endpoints in 1.4.0 and Cloud's advanced search
