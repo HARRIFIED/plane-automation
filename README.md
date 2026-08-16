@@ -14,12 +14,16 @@ Works with **Plane Cloud** and **self-hosted** Plane.
   ranges (created, updated, completed) and free text. Values within a filter are OR-ed, different
   filters are AND-ed. Explicit `unassigned` and `none` options, because those are what people
   actually go looking for.
+- **Exclusions**, for the things you never want to see: drop a state, or drop anything matching a
+  keyword — which is how you keep AI-generated tickets out of a human progress report.
+- **Grouping** — `--group-by state` gives a collapsible section per state, in board order, so a
+  500-row export reads as a status summary rather than a list.
 - **Names, not UUIDs.** Every id is resolved — states, assignees, labels, modules, cycles,
   estimates — because a spreadsheet full of UUIDs is useless.
 - **A workbook you can hand to someone.** Frozen bold header, auto-sized columns capped so a long
   description cannot blow out the sheet, priority and state colour-coded, real dates rather than
   ISO strings, clickable links, and a summary tab carrying the filter criteria and totals so the
-  file still explains itself a week later.
+  file still explains itself a week later. Colours are yours to change.
 - **Two ways in** — a CLI for local use and a REST endpoint for a team, sharing one engine.
 - **Polite to the API** — a throttle matching Plane's own sliding window, retry with jittered
   backoff, `Retry-After` honoured, and lookups cached so repeat exports are cheap.
@@ -53,6 +57,10 @@ npm run export -- --project ENG --updated-from 7d --assignee ada,grace,linus
 
 # Unassigned work that is in progress
 npm run export -- --project ENG --state-group started --assignee unassigned
+
+# A status report: a section per state, minus cancelled work and AI-generated noise
+npm run export -- --project ENG --group-by state \
+  --exclude-state Cancelled --exclude-keyword "Detected by AI"
 
 # Bugs raised since July, trimmed to the columns you care about
 npm run export -- --project ENG --label bug --created-from 2026-07-01 \

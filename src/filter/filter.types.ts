@@ -45,6 +45,24 @@ export interface ExportFilter {
 
   /** Case-insensitive substring match against name and the stripped description. */
   search?: string;
+
+  // ------------------------------------------------------------- exclusions
+  //
+  // Exclusions are applied AFTER the inclusive filters above and always win. "Everything
+  // started, except Blocked" is one filter plus one exclusion, which is far easier to write
+  // than enumerating every state you do want.
+
+  /** State names to drop. Applied after `states` / `stateGroups`. */
+  excludeStates?: string[];
+
+  /**
+   * Drop any work item whose name or description contains one of these, case-insensitively.
+   *
+   * The motivating case is machine-generated noise — tickets opened by an AI code reviewer all
+   * carrying a marker like "Detected by AI" — which nobody wants in a human progress report.
+   * Multiple keywords are OR-ed: matching any one of them excludes the item.
+   */
+  excludeKeywords?: string[];
 }
 
 /**
@@ -112,6 +130,10 @@ export interface ResolvedFilter {
 
   /** Already lowercased. */
   search?: string;
+
+  excludeStateIds?: ReadonlySet<Uuid>;
+  /** Already lowercased. */
+  excludeKeywords?: readonly string[];
 
   /** Values that resolved to nothing. Callers decide whether to warn or refuse. */
   unmatched: UnmatchedFilterValue[];

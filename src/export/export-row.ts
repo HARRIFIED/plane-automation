@@ -17,6 +17,13 @@ export interface ExportRow {
   /** Plane's own state colour, reused for the conditional fill. */
   stateColor: string | null;
   stateGroup: PlaneStateGroup | null;
+  /**
+   * The state's position in the project's own workflow.
+   *
+   * Kept so that grouping by state can present sections in board order — Backlog, Todo, In
+   * Progress, Done — rather than alphabetically, which would put "Done" before "In Progress".
+   */
+  stateSequence: number | null;
   priority: PlanePriority;
   assignees: string;
   labels: string;
@@ -63,6 +70,7 @@ export function buildRow(item: PlaneWorkItem, options: BuildRowsOptions): Export
     state: lookups.stateName(item.state),
     stateColor: state?.color ?? null,
     stateGroup: state?.group ?? null,
+    stateSequence: state?.sequence ?? null,
     priority: item.priority,
     // Comma separated so the cell reads as a sentence rather than needing to be parsed.
     assignees: lookups.memberNames(item.assignees).join(', '),

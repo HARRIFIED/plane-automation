@@ -1,5 +1,6 @@
 import type { ExportFilter } from '../filter';
 import type { ExportColumnKey } from './columns';
+import type { ThemeOptions } from './theme';
 
 export interface ExportRequest {
   /** Project keys, names or UUIDs. One is the common case; several produce a tab each. */
@@ -7,6 +8,10 @@ export interface ExportRequest {
   filter?: ExportFilter;
   /** Defaults to every column, in the documented order. */
   columns?: string[];
+  /** Split each sheet into labelled sections: state, priority, assignees, module or cycle. */
+  groupBy?: string;
+  /** Header, group and banding colours. Defaults apply to anything omitted. */
+  theme?: ThemeOptions;
   /** Bypass the lookup cache for this run. */
   forceRefresh?: boolean;
   /**

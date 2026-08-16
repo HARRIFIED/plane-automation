@@ -43,8 +43,52 @@ export function resolveFilter(filter: ExportFilter, lookups: ProjectLookups): Re
     completedRange: resolveRange(filter.completedBetween, 'completedBetween', unmatched),
     updatedRange: resolveRange(filter.updatedBetween, 'updatedBetween', unmatched),
     search: filter.search?.trim() ? filter.search.trim().toLowerCase() : undefined,
+    excludeStateIds: resolveExcludedStates(filter, lookups, unmatched),
+    excludeKeywords: normaliseKeywords(filter.excludeKeywords),
     unmatched,
   };
+}
+
+/**
+ * States to drop.
+ *
+ * A name here that matches nothing is still reported: excluding a state that does not exist is
+ * harmless in itself, but it almost always means a typo, and silently excluding nothing is the
+ * kind of thing nobody notices until a report is wrong.
+ */
+function resolveExcludedStates(
+  filter: ExportFilter,
+  lookups: ProjectLookups,
+  unmatched: UnmatchedFilterValue[],
+): Set<Uuid> | undefined {
+  if (!filter.excludeStates || filter.excludeStates.length === 0) return undefined;
+
+  const ids = new Set<Uuid>();
+
+  for (const name of filter.excludeStates) {
+    const matches = lookups.findStatesByName(name);
+
+    if (matches.length === 0) {
+      unmatched.push({
+        field: 'excludeStates',
+        value: name,
+        didYouMean: suggest(name, lookups.states.map((state) => state.name)),
+      });
+      continue;
+    }
+
+    for (const match of matches) ids.add(match.id);
+  }
+
+  return ids.size > 0 ? ids : undefined;
+}
+
+function normaliseKeywords(keywords: string[] | undefined): string[] | undefined {
+  if (!keywords || keywords.length === 0) return undefined;
+
+  const cleaned = keywords.map((keyword) => keyword.trim().toLowerCase()).filter(Boolean);
+
+  return cleaned.length > 0 ? cleaned : undefined;
 }
 
 /** Convenience for callers that want unmatched values to be a hard error. */

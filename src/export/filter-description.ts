@@ -6,10 +6,15 @@ import type { ExportFilter } from '../filter';
  * The point is that a spreadsheet forwarded to somebody else still explains what it contains.
  * "states: In Progress, In Review" is readable; a JSON blob pasted into a cell is not.
  */
-export function describeFilter(filter: ExportFilter | undefined): string[] {
-  if (!filter) return [];
-
+export function describeFilter(
+  filter: ExportFilter | undefined,
+  options: { groupBy?: string } = {},
+): string[] {
   const lines: string[] = [];
+
+  if (options.groupBy) lines.push(`Grouped by: ${options.groupBy}`);
+
+  if (!filter) return lines;
 
   list(lines, 'State', filter.states);
   list(lines, 'State group', filter.stateGroups);
@@ -24,6 +29,15 @@ export function describeFilter(filter: ExportFilter | undefined): string[] {
   range(lines, 'Updated', filter.updatedBetween);
 
   if (filter.search?.trim()) lines.push(`Text match: "${filter.search.trim()}"`);
+
+  // Exclusions are spelled out separately: a reader needs to know what was deliberately left
+  // out, or they will wonder why the count does not match what they see in Plane.
+  list(lines, 'Excluding state', filter.excludeStates);
+
+  if (filter.excludeKeywords?.length) {
+    const quoted = filter.excludeKeywords.map((keyword) => `"${keyword}"`).join(' or ');
+    lines.push(`Excluding text: ${quoted}`);
+  }
 
   return lines;
 }

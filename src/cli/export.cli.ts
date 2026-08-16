@@ -43,8 +43,26 @@ Filters (repeat a flag or comma-separate to OR its values; different flags are A
   --completed-to <date>      YYYY-MM-DD (inclusive)
   --search <text>            Match against name and description
 
+Exclusions (applied after the filters above, and always win):
+  --exclude-state <name>     Drop a state, e.g. --exclude-state Cancelled
+  --exclude-keyword <text>   Drop items whose name or description contains this,
+                             e.g. --exclude-keyword "Detected by AI"
+
 Dates accept YYYY-MM-DD, a full ISO timestamp, or a relative "7d" / "2w"
 (N days or weeks ago) — handy for a weekly export that never needs editing.
+
+Layout:
+  --group-by <field>         Split the sheet into sections: state, priority,
+                             assignee, module or cycle. Sections are collapsible
+                             in Excel, and states appear in board order.
+
+Colours (6-digit hex, with or without #):
+  --header-color <hex>       Header row background. Text colour is picked
+                             automatically for contrast unless you set it.
+  --header-text-color <hex>  Header row text
+  --group-color <hex>        Section heading background. Defaults to a light
+                             tint of the header colour.
+  --band-color <hex>         Shade alternate rows
 
 Options:
   --out <path>               Output file. Defaults to <PROJECT>-export-<date>.xlsx
@@ -69,6 +87,13 @@ Examples:
 
   # Only what these three worked on, this week
   npm run export -- --project ENG --updated-from 7d --assignee victor,harrison,buchi
+
+  # A status report: a section per state, without the noise
+  npm run export -- --project ENG --group-by state \\
+    --exclude-state Cancelled --exclude-keyword "Detected by AI"
+
+  # Same, in your own colours
+  npm run export -- --project ENG --group-by state --header-color "#0F766E" --band-color "#F1F5F9"
 `;
 
 async function main(): Promise<void> {
@@ -90,8 +115,15 @@ async function main(): Promise<void> {
       'updated-from': { type: 'string' },
       'updated-to': { type: 'string' },
       search: { type: 'string' },
+      'exclude-state': { type: 'string', multiple: true },
+      'exclude-keyword': { type: 'string', multiple: true },
       out: { type: 'string' },
       columns: { type: 'string' },
+      'group-by': { type: 'string' },
+      'header-color': { type: 'string' },
+      'header-text-color': { type: 'string' },
+      'group-color': { type: 'string' },
+      'band-color': { type: 'string' },
       refresh: { type: 'boolean', default: false },
       'warn-unmatched': { type: 'boolean', default: false },
       quiet: { type: 'boolean', default: false },
@@ -119,12 +151,23 @@ async function main(): Promise<void> {
     completedBetween: range(values['completed-from'], values['completed-to']),
     updatedBetween: range(values['updated-from'], values['updated-to']),
     search: values.search,
+    excludeStates: split(values['exclude-state']),
+    // Not comma-split: an excluded phrase may legitimately contain a comma, and unlike a state
+    // name there is no lookup to catch the mistake. Repeat the flag for several keywords.
+    excludeKeywords: values['exclude-keyword'],
   };
 
   const request: ExportRequest = {
     projects: values.project,
     filter,
     columns: values.columns?.split(',').map((column) => column.trim()),
+    groupBy: values['group-by'],
+    theme: {
+      headerColor: values['header-color'],
+      headerTextColor: values['header-text-color'],
+      groupColor: values['group-color'],
+      bandColor: values['band-color'],
+    },
     forceRefresh: values.refresh,
     onUnmatchedFilter: values['warn-unmatched'] ? 'warn' : 'refuse',
   };

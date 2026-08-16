@@ -25,6 +25,10 @@ npm run export -- --project ENG --updated-from 7d
 # What these three worked on this week
 npm run export -- --project ENG --updated-from 7d --assignee victor,harrison,buchi
 
+# A status report: a section per state, minus cancelled work and AI-generated noise
+npm run export -- --project ENG --group-by state \
+  --exclude-state Cancelled --exclude-keyword "Detected by AI"
+
 # Bugs raised since July, to a named file
 npm run export -- --project ENG --label bug --created-from 2026-07-01 --out bugs.xlsx
 
@@ -98,7 +102,8 @@ Returns the `.xlsx` as a download. Repeat a parameter to OR its values
 
 Parameters: `project`, `state`, `stateGroup`, `assignee`, `label`, `module`, `cycle`,
 `priority`, `updatedFrom`, `updatedTo`, `createdFrom`, `createdTo`, `completedFrom`,
-`completedTo`, `search`, `columns` (comma separated), `refresh`.
+`completedTo`, `search`, `excludeState`, `excludeKeyword`, `columns` (comma separated),
+`groupBy`, `headerColor`, `headerTextColor`, `groupColor`, `bandColor`, `refresh`.
 
 Multi-value parameters accept either form, same as the CLI:
 `?assignee=victor&assignee=harrison` or `?assignee=victor,harrison`.
@@ -141,6 +146,67 @@ does not. Send `"onUnmatchedFilter": "refuse"` for the CLI's behaviour.
   absence tokens. Useful for building a UI on top.
 - `GET /health` — confirms which Plane instance and workspace the service is pointed at, and
   whether it is using Redis or an in-memory cache. The API token is never included.
+
+## Grouping — a section per state
+
+`--group-by state` turns a flat list into something that reads like a board: a heading for each
+state, its work items beneath, and a count.
+
+```bash
+npm run export -- --project ENG --group-by state
+```
+
+```
+┌────────────────────────────────────────────────────┐
+│ In Progress  (12)                                  │  ← heading, tinted with Plane's
+├──────────┬─────────────────────────────┬───────────┤     own colour for that state
+│ ENG-14   │ Login page hangs on SSO     │ Urgent    │
+│ ENG-22   │ Rate limit the public API   │ High      │
+├────────────────────────────────────────────────────┤
+│ Done  (31)                                         │
+├──────────┬─────────────────────────────┬───────────┤
+│ ENG-8    │ Upgrade Postgres to 16      │ Medium    │
+└──────────┴─────────────────────────────┴───────────┘
+```
+
+Three things worth knowing:
+
+- **Sections are collapsible.** They are real Excel outline groups, so the +/− controls in the
+  left margin fold a state down to its heading. That is what makes a 500-row export usable as a
+  status summary.
+- **States appear in your workflow order** — Backlog, Todo, In Progress, Done — taken from the
+  project's own state sequence, not alphabetically. Alphabetical would put Done before In
+  Progress.
+- **The autofilter is switched off when grouping.** Sorting a range that contains headings
+  interleaves them with the data and destroys the layout. A grouped sheet is for reading; a flat
+  one is for slicing.
+
+You can also group by `priority` (ordered urgent → none), `assignee`, `module` or `cycle`.
+Grouping is on the displayed value, so an item with two assignees forms its own
+"Ada Lovelace, Grace Hopper" section rather than being counted twice.
+
+## Colours
+
+Defaults are a dark blue header on white. To match your own palette:
+
+```bash
+npm run export -- --project ENG --header-color "#0F766E" --band-color "#F1F5F9"
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--header-color` | Header row background |
+| `--header-text-color` | Header row text. Picked automatically for contrast if omitted |
+| `--group-color` | Section heading background. Defaults to a light tint of the header colour |
+| `--band-color` | Shades alternate rows |
+
+Six-digit hex, with or without the `#`. An invalid colour fails immediately rather than being
+ignored.
+
+Two deliberate behaviours: **header text is chosen for legibility** using WCAG contrast, so a pale
+custom header gets dark text instead of rendering white-on-white; and **an explicit
+`--group-color` overrides the per-state colours**, which would otherwise win when grouping by
+state.
 
 ## What you get
 

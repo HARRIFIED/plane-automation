@@ -13,4 +13,8 @@ export {
   resolveColumns,
 } from './columns';
 export type { ColumnDefinition, ExportColumnKey } from './columns';
+export { GROUP_BY_FIELDS, groupRows, parseGroupBy } from './grouping';
+export type { GroupByField, RowGroup } from './grouping';
+export { DEFAULT_HEADER_FILL, readableTextOn, resolveTheme, toArgb } from './theme';
+export type { ExportTheme, ThemeOptions } from './theme';
 export type { ExportRequest, ExportResult } from './export.types';

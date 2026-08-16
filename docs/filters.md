@@ -50,6 +50,8 @@ knowing:
 | `createdBetween` | `{ from, to }` | Inclusive. See dates below |
 | `completedBetween` | `{ from, to }` | Inclusive. Never-completed work is excluded |
 | `search` | Any text | Case-insensitive substring of the name or the description |
+| `excludeStates` | State names | Dropped after the filters above — see below |
+| `excludeKeywords` | Any text | Drops items whose name or description contains it |
 
 ### The absence sentinels
 
@@ -95,6 +97,32 @@ a bound.
 
 `completedBetween` doubles as "only finished work": an item that was never completed has no
 completion date, so it cannot fall inside a range.
+
+### Exclusions
+
+Exclusions run **after** the inclusive filters and always win. That makes "everything in
+progress, except Blocked" one filter plus one exclusion, rather than an exercise in listing every
+state you do want:
+
+```bash
+npm run export -- --project ENG --state-group started --exclude-state Blocked
+```
+
+**`--exclude-keyword` is for machine-generated noise.** If an AI code reviewer opens tickets that
+all carry a marker like "Detected by AI", one flag keeps them out of a human progress report:
+
+```bash
+npm run export -- --project ENG --exclude-keyword "Detected by AI"
+```
+
+It matches the name and the stripped description, case-insensitively. Repeat the flag for several
+keywords — an item matching **any** of them is dropped. Unlike the other list flags, keywords are
+**not** comma-split, because an excluded phrase can legitimately contain a comma and there is no
+lookup table to catch the mistake.
+
+A mistyped `--exclude-state` is reported like any other unmatched value. That matters more than it
+sounds: excluding a state that does not exist excludes nothing, silently, and the export just
+looks slightly too long.
 
 ### Search
 

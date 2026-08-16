@@ -37,6 +37,22 @@ const filterSchema = z
     completedBetween: dateRange,
     updatedBetween: dateRange,
     search: z.string().optional(),
+    excludeStates: stringList.optional(),
+    excludeKeywords: stringList.optional(),
+  })
+  .optional();
+
+/** 6-digit hex with an optional leading #, or Excel's 8-digit ARGB. */
+const colour = z
+  .string()
+  .regex(/^#?([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, 'Use 6-digit hex such as #1F3A5F');
+
+const themeSchema = z
+  .object({
+    headerColor: colour.optional(),
+    headerTextColor: colour.optional(),
+    groupColor: colour.optional(),
+    bandColor: colour.optional(),
   })
   .optional();
 
@@ -47,6 +63,8 @@ export const exportRequestSchema = z.object({
     .array(z.enum(EXPORT_COLUMN_KEYS))
     .nonempty('Specify at least one column, or omit the field for all of them')
     .optional(),
+  groupBy: z.enum(['state', 'priority', 'assignee', 'assignees', 'module', 'cycle']).optional(),
+  theme: themeSchema,
   forceRefresh: z.boolean().optional(),
   onUnmatchedFilter: z.enum(['refuse', 'warn']).optional(),
 });
