@@ -217,6 +217,56 @@ describe('applyFilter', () => {
     });
   });
 
+  describe('exclusions', () => {
+    it('drops an excluded state', () => {
+      expect(run({ excludeStates: ['Cancelled'] }, lookups)).not.toContain('item-5');
+    });
+
+    it('applies after the inclusive filters and wins', () => {
+      // "Everything started, except In Review" — far easier to write than enumerating states.
+      const results = run({ stateGroups: ['started'], excludeStates: ['In Progress'] }, lookups);
+
+      expect(results).toEqual([]);
+    });
+
+    it('leaves everything else untouched', () => {
+      const results = run({ excludeStates: ['Cancelled'] }, lookups);
+
+      expect(results).toHaveLength(WORK_ITEMS.length - 1);
+    });
+
+    describe('keywords — the AI-generated ticket case', () => {
+      it('drops items whose name contains the keyword', () => {
+        expect(run({ excludeKeywords: ['nobody owns'] }, lookups)).not.toContain('item-3');
+      });
+
+      it('drops items whose description contains it, ignoring markup', () => {
+        // "invoices" only appears inside description_html on item-2.
+        expect(run({ excludeKeywords: ['invoices'] }, lookups)).not.toContain('item-2');
+      });
+
+      it('is case-insensitive', () => {
+        expect(run({ excludeKeywords: ['LOGIN'] }, lookups)).not.toContain('item-1');
+      });
+
+      it('excludes on any keyword, not all of them', () => {
+        const results = run({ excludeKeywords: ['login', 'invoice'] }, lookups);
+
+        expect(results).not.toContain('item-1');
+        expect(results).not.toContain('item-2');
+      });
+
+      it('keeps everything when the keyword appears nowhere', () => {
+        expect(run({ excludeKeywords: ['Detected by AI'] }, lookups)).toHaveLength(WORK_ITEMS.length);
+      });
+
+      it('combines with a search, with the exclusion winning', () => {
+        // Search finds item-1; the keyword then removes it.
+        expect(run({ search: 'login', excludeKeywords: ['sso'] }, lookups)).toEqual([]);
+      });
+    });
+  });
+
   describe('a realistic combination', () => {
     it('answers "unfinished bugs assigned to Ada, created in July"', () => {
       const results = run(

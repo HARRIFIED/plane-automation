@@ -204,6 +204,38 @@ describe('resolveFilter', () => {
     });
   });
 
+  describe('exclusions', () => {
+    it('resolves excluded state names to ids', () => {
+      const resolved = resolveFilter({ excludeStates: ['Cancelled'] }, lookups);
+
+      expect([...(resolved.excludeStateIds ?? [])]).toEqual([STATES.cancelled.id]);
+    });
+
+    it('reports a mistyped exclusion, since excluding nothing is silent', () => {
+      const resolved = resolveFilter({ excludeStates: ['Cancelledd'] }, lookups);
+
+      expect(resolved.unmatched[0]).toMatchObject({ field: 'excludeStates', value: 'Cancelledd' });
+      expect(resolved.unmatched[0]?.didYouMean).toContain('Cancelled');
+    });
+
+    it('lowercases keywords once, up front', () => {
+      expect(resolveFilter({ excludeKeywords: ['  Detected By AI '] }, lookups).excludeKeywords).toEqual([
+        'detected by ai',
+      ]);
+    });
+
+    it('ignores empty keyword entries', () => {
+      expect(resolveFilter({ excludeKeywords: ['   '] }, lookups).excludeKeywords).toBeUndefined();
+    });
+
+    it('leaves exclusions unset when none were given', () => {
+      const resolved = resolveFilter({}, lookups);
+
+      expect(resolved.excludeStateIds).toBeUndefined();
+      expect(resolved.excludeKeywords).toBeUndefined();
+    });
+  });
+
   it('lowercases the search term once, up front', () => {
     expect(resolveFilter({ search: '  LOGIN  ' }, lookups).search).toBe('login');
   });

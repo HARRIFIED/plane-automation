@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 
 import { DEFAULT_COLUMNS } from './columns';
 import type { ExportRow } from './export-row';
+import { resolveTheme } from './theme';
 import { buildWorkbook, sanitiseSheetName, tint } from './workbook-builder';
 
 function row(overrides: Partial<ExportRow> = {}): ExportRow {
@@ -12,6 +13,7 @@ function row(overrides: Partial<ExportRow> = {}): ExportRow {
     state: 'In Progress',
     stateColor: '#3f76d4',
     stateGroup: 'started',
+    stateSequence: 3,
     priority: 'urgent',
     assignees: 'Ada Lovelace',
     labels: 'bug, frontend',
@@ -216,6 +218,160 @@ describe('buildWorkbook', () => {
     const workbook = await reopen(await buildWorkbook({ columns: ['identifier'], summary: clashing }));
 
     expect(new Set(workbook.worksheets.map((sheet) => sheet.name)).size).toBe(3);
+  });
+});
+
+describe('grouping', () => {
+  const grouped = {
+    ...summary,
+    sheets: [
+      {
+        projectName: 'Engineering',
+        projectIdentifier: 'ENG',
+        rows: [
+          row({ identifier: 'ENG-1', state: 'In Progress', stateSequence: 3 }),
+          row({ identifier: 'ENG-2', state: 'Todo', stateSequence: 2 }),
+          row({ identifier: 'ENG-3', state: 'Todo', stateSequence: 2 }),
+        ],
+      },
+    ],
+  };
+
+  it('writes a heading per section, in board order, with counts', async () => {
+    const workbook = await reopen(
+      await buildWorkbook({ columns: ['identifier', 'name'], summary: grouped, groupBy: 'state' }),
+    );
+    const sheet = workbook.getWorksheet('Engineering');
+
+    // Row 1 is the header; then Todo's section, then In Progress's.
+    expect(sheet?.getRow(2).getCell(1).value).toBe('Todo  (2)');
+    expect(sheet?.getRow(5).getCell(1).value).toBe('In Progress  (1)');
+  });
+
+  it('keeps every data row', async () => {
+    const workbook = await reopen(
+      await buildWorkbook({ columns: ['identifier'], summary: grouped, groupBy: 'state' }),
+    );
+    const sheet = workbook.getWorksheet('Engineering');
+
+    const identifiers: string[] = [];
+    sheet?.eachRow((sheetRow) => {
+      const value = String(sheetRow.getCell(1).value ?? '');
+      if (value.startsWith('ENG-')) identifiers.push(value);
+    });
+
+    expect(identifiers.sort()).toEqual(['ENG-1', 'ENG-2', 'ENG-3']);
+  });
+
+  it('makes sections collapsible', async () => {
+    const workbook = await reopen(
+      await buildWorkbook({ columns: ['identifier', 'name'], summary: grouped, groupBy: 'state' }),
+    );
+    const sheet = workbook.getWorksheet('Engineering');
+
+    expect(sheet?.getRow(3).outlineLevel).toBe(1); // a data row
+    expect(sheet?.getRow(2).outlineLevel).toBeFalsy(); // its heading
+  });
+
+  it('omits the autofilter, which would scramble the sections', async () => {
+    // Sorting a range containing headings interleaves them with the data.
+    const workbook = await reopen(
+      await buildWorkbook({ columns: ['identifier', 'name'], summary: grouped, groupBy: 'state' }),
+    );
+
+    expect(workbook.getWorksheet('Engineering')?.autoFilter).toBeFalsy();
+  });
+
+  it('keeps the autofilter when not grouping', async () => {
+    const workbook = await reopen(await buildWorkbook({ columns: ['identifier', 'name'], summary: grouped }));
+
+    expect(workbook.getWorksheet('Engineering')?.autoFilter).toBeTruthy();
+  });
+
+  it('tints section headings with Plane\'s own state colour by default', async () => {
+    const workbook = await reopen(
+      await buildWorkbook({ columns: ['identifier', 'name'], summary: grouped, groupBy: 'state' }),
+    );
+
+    // A tint of the fixture state colour #3f76d4, not the default group fill.
+    expect(workbook.getWorksheet('Engineering')?.getRow(2).getCell(1).fill).toMatchObject({
+      fgColor: { argb: expect.stringMatching(/^FF/) as unknown as string },
+    });
+  });
+
+  it('lets an explicit group colour override the state colour', async () => {
+    // Otherwise --group-color appears to do nothing on the grouping people use most.
+    const workbook = await reopen(
+      await buildWorkbook({
+        columns: ['identifier', 'name'],
+        summary: grouped,
+        groupBy: 'state',
+        theme: resolveTheme({ groupColor: '#E2E8F0' }),
+      }),
+    );
+
+    expect(workbook.getWorksheet('Engineering')?.getRow(2).getCell(1).fill).toMatchObject({
+      fgColor: { argb: 'FFE2E8F0' },
+    });
+  });
+
+  it('records the grouping on the summary sheet', async () => {
+    const workbook = await reopen(
+      await buildWorkbook({
+        columns: ['identifier'],
+        groupBy: 'state',
+        summary: { ...grouped, filterDescription: ['Grouped by: state'] },
+      }),
+    );
+
+    expect(flatten(workbook.getWorksheet('Summary'))).toContain('Grouped by: state');
+  });
+});
+
+describe('theming', () => {
+  it('uses a custom header colour, on the data sheet and the summary', async () => {
+    const theme = resolveTheme({ headerColor: '#0F766E' });
+    const workbook = await reopen(await buildWorkbook({ columns: ['identifier'], summary, theme }));
+
+    expect(workbook.getWorksheet('Engineering')?.getRow(1).getCell(1).fill).toMatchObject({
+      fgColor: { argb: 'FF0F766E' },
+    });
+    expect(flatten(workbook.getWorksheet('Summary'))).toContain('Plane work item export');
+  });
+
+  it('bands alternate rows when a band colour is given', async () => {
+    const theme = resolveTheme({ bandColor: '#F1F5F9' });
+    const banded = {
+      ...summary,
+      sheets: [{ ...summary.sheets[0]!, rows: [row({ identifier: 'ENG-1' }), row({ identifier: 'ENG-2' })] }],
+    };
+
+    const workbook = await reopen(await buildWorkbook({ columns: ['identifier'], summary: banded, theme }));
+    const sheet = workbook.getWorksheet('Engineering');
+
+    expect(sheet?.getRow(2).getCell(1).fill).toBeFalsy();
+    expect(sheet?.getRow(3).getCell(1).fill).toMatchObject({ fgColor: { argb: 'FFF1F5F9' } });
+  });
+
+  it('leaves rows unbanded by default', async () => {
+    const workbook = await reopen(await buildWorkbook({ columns: ['identifier'], summary }));
+
+    expect(workbook.getWorksheet('Engineering')?.getRow(2).getCell(1).fill).toBeFalsy();
+  });
+
+  it('does not let banding hide the priority fill', async () => {
+    // The point of the priority colour is that it stands out from its row.
+    const theme = resolveTheme({ bandColor: '#F1F5F9' });
+    const banded = {
+      ...summary,
+      sheets: [{ ...summary.sheets[0]!, rows: [row(), row({ priority: 'urgent' })] }],
+    };
+
+    const workbook = await reopen(await buildWorkbook({ columns: ['priority'], summary: banded, theme }));
+
+    expect(workbook.getWorksheet('Engineering')?.getRow(3).getCell(1).fill).toMatchObject({
+      fgColor: { argb: 'FFFFC7CE' },
+    });
   });
 });
 

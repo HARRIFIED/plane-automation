@@ -4,10 +4,10 @@ import type { PlanePriority } from '../plane';
 import { COLUMN_DEFINITIONS } from './columns';
 import type { ColumnDefinition, ExportColumnKey } from './columns';
 import type { ExportRow } from './export-row';
-
-/** House accent for header fills. */
-const ACCENT_FILL = 'FF1F3A5F';
-const ACCENT_TEXT = 'FFFFFFFF';
+import { groupRows } from './grouping';
+import type { GroupByField } from './grouping';
+import { readableTextOn, resolveTheme } from './theme';
+import type { ExportTheme } from './theme';
 
 /** Priority fills, warm to cool so severity reads at a glance. */
 const PRIORITY_FILLS: Record<PlanePriority, string | null> = {
@@ -41,6 +41,10 @@ export interface SummaryData {
 export interface BuildWorkbookOptions {
   columns: readonly ExportColumnKey[];
   summary: SummaryData;
+  /** Split each sheet into labelled sections by this field. */
+  groupBy?: GroupByField;
+  /** Colours. Defaults are used for anything not supplied. */
+  theme?: ExportTheme;
 }
 
 /**
@@ -54,10 +58,12 @@ export async function buildWorkbook(options: BuildWorkbookOptions): Promise<Buff
   workbook.creator = 'plane-automation';
   workbook.created = options.summary.generatedAt;
 
-  addSummarySheet(workbook, options.summary, options.columns);
+  const theme = options.theme ?? resolveTheme();
+
+  addSummarySheet(workbook, options.summary, options.columns, theme);
 
   for (const sheet of options.summary.sheets) {
-    addProjectSheet(workbook, sheet, options.columns);
+    addProjectSheet(workbook, sheet, options.columns, theme, options.groupBy);
   }
 
   // ExcelJS declares its own Buffer type that does not line up with Node's, so go through
@@ -72,10 +78,15 @@ function addProjectSheet(
   workbook: ExcelJS.Workbook,
   sheet: SheetData,
   columns: readonly ExportColumnKey[],
+  theme: ExportTheme,
+  groupBy?: GroupByField,
 ): void {
   const worksheet = workbook.addWorksheet(uniqueSheetName(workbook, sheet.projectName || sheet.projectIdentifier), {
     // Freeze the header so it stays visible while scrolling a few thousand rows.
     views: [{ state: 'frozen', ySplit: 1 }],
+    // Collapse controls belong above their section, matching how the groups are laid out.
+    properties: { outlineLevelRow: groupBy ? 1 : 0 },
+    ...(groupBy ? { outlineProperties: { summaryBelow: false, summaryRight: false } } : {}),
   });
 
   const definitions = columns.map((key) => COLUMN_DEFINITIONS[key]);
@@ -86,21 +97,83 @@ function addProjectSheet(
     width: definition.width,
   }));
 
-  styleHeaderRow(worksheet.getRow(1));
+  styleHeaderRow(worksheet.getRow(1), theme);
 
-  for (const row of sheet.rows) {
-    const added = worksheet.addRow(buildCellValues(row, definitions));
-    styleDataRow(added, row, definitions);
+  if (groupBy) {
+    writeGroupedRows(worksheet, sheet.rows, definitions, theme, groupBy);
+  } else {
+    writeFlatRows(worksheet, sheet.rows, definitions, theme);
   }
 
   autoSizeColumns(worksheet, definitions);
 
   // Filter dropdowns on the header: the export is already filtered, but people slice further.
-  if (sheet.rows.length > 0) {
+  //
+  // Deliberately skipped when grouping, because sorting or filtering a range that contains
+  // section headings interleaves those headings with the data and destroys the grouping. A
+  // grouped sheet is something you read; a flat one is something you slice.
+  if (sheet.rows.length > 0 && !groupBy) {
     worksheet.autoFilter = {
       from: { row: 1, column: 1 },
       to: { row: 1, column: definitions.length },
     };
+  }
+}
+
+function writeFlatRows(
+  worksheet: ExcelJS.Worksheet,
+  rows: readonly ExportRow[],
+  definitions: ColumnDefinition[],
+  theme: ExportTheme,
+): void {
+  rows.forEach((row, index) => {
+    const added = worksheet.addRow(buildCellValues(row, definitions));
+    styleDataRow(added, row, definitions, theme, index);
+  });
+}
+
+/**
+ * One section per distinct value, each with a heading row above its items.
+ *
+ * Sections are also Excel outline groups, so the +/- controls in the margin collapse a state
+ * down to its heading — which is what makes a 500-row export readable as a status summary.
+ */
+function writeGroupedRows(
+  worksheet: ExcelJS.Worksheet,
+  rows: readonly ExportRow[],
+  definitions: ColumnDefinition[],
+  theme: ExportTheme,
+  groupBy: GroupByField,
+): void {
+  const groups = groupRows(rows, groupBy);
+
+  for (const group of groups) {
+    const heading = worksheet.addRow([`${group.label}  (${group.rows.length})`]);
+
+    // Plane's own state colour when there is one, so a section is recognisable from the board.
+    // An explicitly chosen group colour outranks it — otherwise --group-color would appear to
+    // do nothing when grouping by state, which is the grouping people use most.
+    const stateFill = theme.groupFillExplicit ? null : group.color && tint(group.color);
+    const fill = stateFill || theme.groupFill;
+
+    heading.font = { bold: true, size: 12, color: { argb: readableTextOn(fill) } };
+    heading.height = 22;
+    heading.alignment = { vertical: 'middle' };
+
+    for (let column = 1; column <= definitions.length; column += 1) {
+      heading.getCell(column).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    }
+
+    // Merging makes a long label readable instead of clipped at the first column boundary.
+    if (definitions.length > 1) {
+      worksheet.mergeCells(heading.number, 1, heading.number, definitions.length);
+    }
+
+    group.rows.forEach((row, index) => {
+      const added = worksheet.addRow(buildCellValues(row, definitions));
+      styleDataRow(added, row, definitions, theme, index);
+      added.outlineLevel = 1;
+    });
   }
 }
 
@@ -127,16 +200,30 @@ function buildCellValues(row: ExportRow, definitions: ColumnDefinition[]): Recor
   return values;
 }
 
-function styleHeaderRow(row: ExcelJS.Row): void {
-  row.font = { bold: true, color: { argb: ACCENT_TEXT } };
-  row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ACCENT_FILL } };
+function styleHeaderRow(row: ExcelJS.Row, theme: ExportTheme): void {
+  row.font = { bold: true, color: { argb: theme.headerText } };
+  row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.headerFill } };
   row.alignment = { vertical: 'middle' };
   row.height = 20;
 }
 
-function styleDataRow(row: ExcelJS.Row, data: ExportRow, definitions: ColumnDefinition[]): void {
+function styleDataRow(
+  row: ExcelJS.Row,
+  data: ExportRow,
+  definitions: ColumnDefinition[],
+  theme: ExportTheme,
+  index: number,
+): void {
+  // Banding is applied first so the priority and state fills below can overwrite it on their
+  // own cells — the point of those is that they stand out from the row.
+  const banded = theme.bandFill !== undefined && index % 2 === 1;
+
   definitions.forEach((definition, offset) => {
     const cell = row.getCell(offset + 1);
+
+    if (banded) {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.bandFill as string } };
+    }
 
     switch (definition.format) {
       case 'date':
@@ -216,11 +303,12 @@ function addSummarySheet(
   workbook: ExcelJS.Workbook,
   summary: SummaryData,
   columns: readonly ExportColumnKey[],
+  theme: ExportTheme,
 ): void {
   const sheet = workbook.addWorksheet('Summary');
   sheet.columns = [{ width: 34 }, { width: 16 }, { width: 60 }];
 
-  title(sheet, 'Plane work item export');
+  title(sheet, 'Plane work item export', theme);
 
   const allRows = summary.sheets.flatMap((entry) => entry.rows);
 
@@ -231,7 +319,7 @@ function addSummarySheet(
   keyValue(sheet, 'Columns', columns.length);
 
   blank(sheet);
-  title(sheet, 'Filter criteria');
+  title(sheet, 'Filter criteria', theme);
   if (summary.filterDescription.length === 0) {
     sheet.addRow(['No filters — full project export']);
   } else {
@@ -240,7 +328,7 @@ function addSummarySheet(
 
   if (summary.warnings.length > 0) {
     blank(sheet);
-    title(sheet, 'Warnings');
+    title(sheet, 'Warnings', theme);
     for (const warning of summary.warnings) {
       const row = sheet.addRow([warning]);
       row.getCell(1).font = { color: { argb: 'FFB45309' } };
@@ -254,18 +342,20 @@ function addSummarySheet(
       sheet,
       'By project',
       summary.sheets.map((entry) => [entry.projectIdentifier, entry.rows.length] as const),
+      theme,
     );
   }
 
   blank(sheet);
-  breakdown(sheet, 'By state', tally(allRows, (row) => row.state || '(no state)'));
+  breakdown(sheet, 'By state', tally(allRows, (row) => row.state || '(no state)'), theme);
   blank(sheet);
-  breakdown(sheet, 'By priority', tally(allRows, (row) => capitalise(row.priority)));
+  breakdown(sheet, 'By priority', tally(allRows, (row) => capitalise(row.priority)), theme);
   blank(sheet);
   breakdown(
     sheet,
     'By assignee',
     tally(allRows, (row) => row.assignees || '(unassigned)'),
+    theme,
   );
 
   blank(sheet);
@@ -275,9 +365,9 @@ function addSummarySheet(
   note.getCell(1).font = { italic: true, color: { argb: 'FF6B7280' } };
 }
 
-function title(sheet: ExcelJS.Worksheet, text: string): void {
+function title(sheet: ExcelJS.Worksheet, text: string, theme: ExportTheme): void {
   const row = sheet.addRow([text]);
-  row.getCell(1).font = { bold: true, size: 12, color: { argb: ACCENT_FILL } };
+  row.getCell(1).font = { bold: true, size: 12, color: { argb: theme.headerFill } };
 }
 
 function keyValue(sheet: ExcelJS.Worksheet, label: string, value: unknown): ExcelJS.Row {
@@ -290,14 +380,19 @@ function blank(sheet: ExcelJS.Worksheet): void {
   sheet.addRow([]);
 }
 
-function breakdown(sheet: ExcelJS.Worksheet, heading: string, entries: readonly (readonly [string, number])[]): void {
-  title(sheet, heading);
+function breakdown(
+  sheet: ExcelJS.Worksheet,
+  heading: string,
+  entries: readonly (readonly [string, number])[],
+  theme: ExportTheme,
+): void {
+  title(sheet, heading, theme);
 
   const header = sheet.addRow([heading.replace('By ', '').replace(/^./, (c) => c.toUpperCase()), 'Count']);
   header.eachCell((cell, column) => {
     if (column > 2) return;
-    cell.font = { bold: true, color: { argb: ACCENT_TEXT } };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ACCENT_FILL } };
+    cell.font = { bold: true, color: { argb: theme.headerText } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.headerFill } };
   });
 
   if (entries.length === 0) {

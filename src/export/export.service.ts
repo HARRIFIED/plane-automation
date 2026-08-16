@@ -11,7 +11,9 @@ import type { ExportColumnKey } from './columns';
 import { describeFilter } from './filter-description';
 import { buildRows } from './export-row';
 import type { ExportRequest, ExportResult } from './export.types';
+import { parseGroupBy } from './grouping';
 import { ProjectResolver } from './project-resolver';
+import { resolveTheme } from './theme';
 import { buildWorkbook } from './workbook-builder';
 import type { SheetData } from './workbook-builder';
 
@@ -36,6 +38,11 @@ export class ExportService {
     const startedAt = Date.now();
 
     const columns = resolveColumns(request.columns);
+    // Both throw on bad input, and both run before any network call so a typo in a colour or a
+    // group field fails immediately rather than after a minute of paging.
+    const groupBy = parseGroupBy(request.groupBy);
+    const theme = resolveTheme(request.theme);
+
     const filter = request.filter ?? {};
     const forceRefresh = request.forceRefresh ?? false;
     const onUnmatched = request.onUnmatchedFilter ?? 'refuse';
@@ -75,9 +82,11 @@ export class ExportService {
     const generatedAt = new Date();
     const buffer = await buildWorkbook({
       columns,
+      groupBy,
+      theme,
       summary: {
         generatedAt,
-        filterDescription: describeFilter(request.filter),
+        filterDescription: describeFilter(request.filter, { groupBy }),
         warnings,
         sheets,
       },

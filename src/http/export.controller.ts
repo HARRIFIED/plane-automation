@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 
-import { EXPORT_COLUMN_KEYS, ExportService } from '../export';
+import { EXPORT_COLUMN_KEYS, ExportService, GROUP_BY_FIELDS } from '../export';
 import type { ExportRequest } from '../export';
 import { PLANE_PRIORITIES, PLANE_STATE_GROUPS } from '../plane';
 import { exportRequestSchema } from './export-request.dto';
@@ -40,6 +40,8 @@ export class ExportController {
       columns: EXPORT_COLUMN_KEYS,
       stateGroups: PLANE_STATE_GROUPS.filter((group) => group !== 'triage'),
       priorities: PLANE_PRIORITIES,
+      groupBy: GROUP_BY_FIELDS,
+      theme: ['headerColor', 'headerTextColor', 'groupColor', 'bandColor'],
       absenceTokens: {
         assignees: 'unassigned',
         labels: 'none',
@@ -84,8 +86,18 @@ export class ExportController {
         completedBetween: range(query.completedFrom, query.completedTo),
         updatedBetween: range(query.updatedFrom, query.updatedTo),
         search: query.search,
+        excludeStates: toArray(query.excludeState),
+        // Not comma-split: an excluded phrase can contain a comma. Repeat the parameter.
+        excludeKeywords: rawArray(query.excludeKeyword),
       },
       columns: typeof query.columns === 'string' ? query.columns.split(',') : undefined,
+      groupBy: query.groupBy,
+      theme: {
+        headerColor: query.headerColor,
+        headerTextColor: query.headerTextColor,
+        groupColor: query.groupColor,
+        bandColor: query.bandColor,
+      },
       forceRefresh: query.refresh === 'true' || query.refresh === '1',
       onUnmatchedFilter: query.onUnmatchedFilter,
     });
@@ -139,6 +151,17 @@ function toArray(value: unknown): string[] | undefined {
     .filter((entry) => entry.length > 0);
 
   return flattened.length > 0 ? flattened : undefined;
+}
+
+/** Like toArray, but without comma-splitting — for values that may legitimately contain one. */
+function rawArray(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+
+  const entries = (Array.isArray(value) ? value.map(String) : [String(value)])
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  return entries.length > 0 ? entries : undefined;
 }
 
 function range(from: unknown, to: unknown): { from?: string; to?: string } | undefined {

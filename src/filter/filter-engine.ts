@@ -53,7 +53,17 @@ function matches(item: PlaneWorkItem, filter: ResolvedFilter, context: FilterCon
   if (!inRange(item.completed_at, filter.completedRange)) return false;
   if (!inRange(item.updated_at, filter.updatedRange)) return false;
 
-  if (filter.search && !matchesSearch(item, filter.search)) return false;
+  // Exclusions run last and always win: "everything started, except Blocked".
+  if (filter.excludeStateIds && item.state && filter.excludeStateIds.has(item.state)) return false;
+
+  if (filter.search || filter.excludeKeywords) {
+    // Stripping the description is the one expensive step here, so it happens once and only
+    // when a text filter is actually in play.
+    const haystack = searchableText(item);
+
+    if (filter.search && !haystack.includes(filter.search)) return false;
+    if (filter.excludeKeywords?.some((keyword) => haystack.includes(keyword))) return false;
+  }
 
   return true;
 }
@@ -123,11 +133,14 @@ function inRange(timestamp: string | null, range: MillisecondRange | undefined):
   return true;
 }
 
-/** Case-insensitive substring match over the name and the stripped description. */
-function matchesSearch(item: PlaneWorkItem, search: string): boolean {
-  if (item.name.toLowerCase().includes(search)) return true;
-
-  // Only stripped when a search is actually running; it is the one expensive step here.
-  const description = htmlToText(item.description_html, { singleLine: true }).toLowerCase();
-  return description.includes(search);
+/**
+ * Name plus stripped description, lowercased — the text both `search` and `excludeKeywords`
+ * match against.
+ *
+ * Markup is stripped first, so a search for "strong" does not match `<strong>`, and an
+ * exclusion for a phrase spanning inline formatting still matches.
+ */
+function searchableText(item: PlaneWorkItem): string {
+  const description = htmlToText(item.description_html, { singleLine: true });
+  return `${item.name}\n${description}`.toLowerCase();
 }
