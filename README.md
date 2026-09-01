@@ -152,9 +152,7 @@ so `npm test` never touches a live Plane instance.
 The exporter is complete and in use. Saved filter presets, backed by Postgres, are the next
 planned addition — `DATABASE_URL` is reserved for them and unused today.
 
-Issues and pull requests welcome. If you hit an API behaviour that differs from what
-[plane-api-findings.md](docs/plane-api-findings.md) records, that document is the place to fix
-first — it explains §6.3 how to verify an endpoint against Plane's own source.
+Issues and pull requests welcome. 
 
 ## Licence
 
