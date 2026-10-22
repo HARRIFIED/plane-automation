@@ -20,13 +20,13 @@ import type {
 
 const PROJECT_ID = 'project-1';
 
-function state(id: string, name: string, group: PlaneState['group']): PlaneState {
+function state(id: string, name: string, group: PlaneState['group'], sequence: number): PlaneState {
   return {
     id,
     name,
     group,
     color: '#888888',
-    sequence: 1,
+    sequence,
     description: '',
     default: false,
     project: PROJECT_ID,
@@ -60,12 +60,12 @@ function member(id: string, first: string, last: string, email: string, handle: 
 }
 
 export const STATES = {
-  backlog: state('state-backlog', 'Backlog', 'backlog'),
-  todo: state('state-todo', 'Todo', 'unstarted'),
-  doing: state('state-doing', 'In Progress', 'started'),
-  review: state('state-review', 'In Review', 'started'),
-  done: state('state-done', 'Done', 'completed'),
-  cancelled: state('state-cancelled', 'Cancelled', 'cancelled'),
+  backlog: state('state-backlog', 'Backlog', 'backlog', 1),
+  todo: state('state-todo', 'Todo', 'unstarted', 2),
+  doing: state('state-doing', 'In Progress', 'started', 3),
+  review: state('state-review', 'In Review', 'started', 4),
+  done: state('state-done', 'Done', 'completed', 5),
+  cancelled: state('state-cancelled', 'Cancelled', 'cancelled', 6),
 };
 
 export const LABELS = {

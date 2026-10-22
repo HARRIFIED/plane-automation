@@ -134,13 +134,17 @@ function inRange(timestamp: string | null, range: MillisecondRange | undefined):
 }
 
 /**
- * Name plus stripped description, lowercased — the text both `search` and `excludeKeywords`
- * match against.
+ * Name plus stripped description, lowercased — the text that `search`, `excludeKeywords` and
+ * the summary's keyword reports all match against.
+ *
+ * Exported so a keyword that excludes an item from the rows is guaranteed to be the same
+ * keyword that counts it in the report. Two implementations would drift, and the symptom
+ * would be a report that quietly disagrees with the sheet.
  *
  * Markup is stripped first, so a search for "strong" does not match `<strong>`, and an
  * exclusion for a phrase spanning inline formatting still matches.
  */
-function searchableText(item: PlaneWorkItem): string {
+export function searchableText(item: PlaneWorkItem): string {
   const description = htmlToText(item.description_html, { singleLine: true });
   return `${item.name}\n${description}`.toLowerCase();
 }

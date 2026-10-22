@@ -18,6 +18,8 @@ Works with **Plane Cloud** and **self-hosted** Plane.
   keyword — which is how you keep AI-generated tickets out of a human progress report.
 - **Grouping** — `--group-by state` gives a collapsible section per state, in board order, so a
   500-row export reads as a status summary rather than a list.
+- **Keyword reports** — count AI-raised tickets by state on the summary tab while keeping them out
+  of the rows, so a human progress report stays readable without losing the tally.
 - **Names, not UUIDs.** Every id is resolved — states, assignees, labels, modules, cycles,
   estimates — because a spreadsheet full of UUIDs is useless.
 - **A workbook you can hand to someone.** Frozen bold header, auto-sized columns capped so a long
@@ -58,9 +60,10 @@ npm run export -- --project ENG --updated-from 7d --assignee ada,grace,linus
 # Unassigned work that is in progress
 npm run export -- --project ENG --state-group started --assignee unassigned
 
-# A status report: a section per state, minus cancelled work and AI-generated noise
-npm run export -- --project ENG --group-by state \
-  --exclude-state Cancelled --exclude-keyword "Detected by AI"
+# A status report: a section per state, minus cancelled work and AI-generated
+# noise - with the AI tickets still counted on the summary tab
+npm run export -- --project ENG --group-by state --exclude-state Cancelled \
+  --exclude-keyword "Detected by AI" --report-keyword "Detected by AI"
 
 # Bugs raised since July, trimmed to the columns you care about
 npm run export -- --project ENG --label bug --created-from 2026-07-01 \

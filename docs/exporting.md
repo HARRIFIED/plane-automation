@@ -102,8 +102,9 @@ Returns the `.xlsx` as a download. Repeat a parameter to OR its values
 
 Parameters: `project`, `state`, `stateGroup`, `assignee`, `label`, `module`, `cycle`,
 `priority`, `updatedFrom`, `updatedTo`, `createdFrom`, `createdTo`, `completedFrom`,
-`completedTo`, `search`, `excludeState`, `excludeKeyword`, `columns` (comma separated),
-`groupBy`, `headerColor`, `headerTextColor`, `groupColor`, `bandColor`, `refresh`.
+`completedTo`, `search`, `excludeState`, `excludeKeyword`, `reportKeyword`, `reportScope`,
+`columns` (comma separated), `groupBy`, `headerColor`, `headerTextColor`, `groupColor`,
+`bandColor`, `refresh`.
 
 Multi-value parameters accept either form, same as the CLI:
 `?assignee=victor&assignee=harrison` or `?assignee=victor,harrison`.
@@ -184,6 +185,49 @@ Three things worth knowing:
 You can also group by `priority` (ordered urgent → none), `assignee`, `module` or `cycle`.
 Grouping is on the displayed value, so an item with two assignees forms its own
 "Ada Lovelace, Grace Hopper" section rather than being counted twice.
+
+## Keyword reports on the summary tab
+
+`--report-keyword` adds a counted section to the Summary tab: a total, then a count per state.
+It was built for machine-raised tickets — an AI code reviewer that files work items carrying a
+marker — where you want them **out of the rows but still counted**:
+
+```bash
+npm run export -- --project ENG \
+  --exclude-keyword "Detected by Felicia AI" \
+  --report-keyword  "Detected by Felicia AI"
+```
+
+```
+Keyword report: "Detected by Felicia AI"
+Counted within this export's filters, but not hidden by any keyword exclusion
+Total matching          15
+State          Count
+Backlog          5
+In Progress      5
+Staging          3
+Production       2
+```
+
+Those two flags look contradictory and are not. The report is built **before** the exclusion is
+applied, so hiding the tickets from the sheet does not zero out the tally. Getting this backwards
+would produce a report that always reads zero — the one wrong answer that looks plausible.
+
+States appear in workflow order, so "how many reached staging, how many reached production" reads
+straight down the column. Repeat `--report-keyword` for several markers; each gets its own
+section. A keyword that matches nothing still prints its section, saying so — a section that
+silently disappears looks like a broken feature.
+
+### Scope
+
+| | |
+| --- | --- |
+| `--report-scope filtered` | **Default.** Counts within the export's own filters — "how many in this week's report" |
+| `--report-scope all` | Counts across the whole project, ignoring the filters — "how many has it raised in total" |
+
+The distinction matters when the export is narrow. A weekly report filtered to two assignees would
+otherwise only count AI tickets assigned to those two, which is rarely the number you want from a
+running total.
 
 ## Colours
 

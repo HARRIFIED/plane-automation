@@ -41,6 +41,7 @@ export class ExportController {
       stateGroups: PLANE_STATE_GROUPS.filter((group) => group !== 'triage'),
       priorities: PLANE_PRIORITIES,
       groupBy: GROUP_BY_FIELDS,
+      reportScope: ['filtered', 'all'],
       theme: ['headerColor', 'headerTextColor', 'groupColor', 'bandColor'],
       absenceTokens: {
         assignees: 'unassigned',
@@ -92,6 +93,8 @@ export class ExportController {
       },
       columns: typeof query.columns === 'string' ? query.columns.split(',') : undefined,
       groupBy: query.groupBy,
+      reportKeywords: rawArray(query.reportKeyword),
+      reportScope: query.reportScope,
       theme: {
         headerColor: query.headerColor,
         headerTextColor: query.headerTextColor,
