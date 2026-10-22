@@ -64,6 +64,8 @@ export const exportRequestSchema = z.object({
     .nonempty('Specify at least one column, or omit the field for all of them')
     .optional(),
   groupBy: z.enum(['state', 'priority', 'assignee', 'assignees', 'module', 'cycle']).optional(),
+  reportKeywords: stringList.optional(),
+  reportScope: z.enum(['filtered', 'all']).optional(),
   theme: themeSchema,
   forceRefresh: z.boolean().optional(),
   onUnmatchedFilter: z.enum(['refuse', 'warn']).optional(),

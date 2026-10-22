@@ -10,6 +10,22 @@ export interface ExportRequest {
   columns?: string[];
   /** Split each sheet into labelled sections: state, priority, assignees, module or cycle. */
   groupBy?: string;
+
+  /**
+   * Add a counted breakdown to the summary tab for each of these keywords.
+   *
+   * Independent of `filter.excludeKeywords`: the same phrase can keep items out of the rows
+   * and still be counted here.
+   */
+  reportKeywords?: string[];
+
+  /**
+   * Whether keyword reports respect the export's filters.
+   *
+   * `filtered` (default) counts within the same window and filters as the export.
+   * `all` counts across the whole project, which is what a running total needs.
+   */
+  reportScope?: 'filtered' | 'all';
   /** Header, group and banding colours. Defaults apply to anything omitted. */
   theme?: ThemeOptions;
   /** Bypass the lookup cache for this run. */

@@ -5,6 +5,7 @@ import { COLUMN_DEFINITIONS } from './columns';
 import type { ColumnDefinition, ExportColumnKey } from './columns';
 import type { ExportRow } from './export-row';
 import { groupRows } from './grouping';
+import type { KeywordReport } from './keyword-report';
 import type { GroupByField } from './grouping';
 import { readableTextOn, resolveTheme } from './theme';
 import type { ExportTheme } from './theme';
@@ -36,6 +37,8 @@ export interface SummaryData {
   /** Anything the filter referred to that did not exist, if the caller chose to warn. */
   warnings: string[];
   sheets: SheetData[];
+  /** Counted keyword breakdowns, rendered on the summary tab. */
+  keywordReports?: KeywordReport[];
 }
 
 export interface BuildWorkbookOptions {
@@ -335,6 +338,11 @@ function addSummarySheet(
     }
   }
 
+  for (const report of summary.keywordReports ?? []) {
+    blank(sheet);
+    addKeywordReport(sheet, report, theme);
+  }
+
   // Per-project counts only earn their space when there is more than one project.
   if (summary.sheets.length > 1) {
     blank(sheet);
@@ -363,6 +371,42 @@ function addSummarySheet(
     'Note: Plane\'s API does not return archived, draft or triage work items, so they are absent from this export.',
   ]);
   note.getCell(1).font = { italic: true, color: { argb: 'FF6B7280' } };
+}
+
+/**
+ * A counted breakdown for one keyword: the total, then a row per state.
+ *
+ * Rendered even when the total is zero — "no AI-raised tickets this week" is a real answer,
+ * and a section that silently disappears looks like a broken feature.
+ */
+function addKeywordReport(sheet: ExcelJS.Worksheet, report: KeywordReport, theme: ExportTheme): void {
+  title(sheet, `Keyword report: "${report.keyword}"`, theme);
+
+  const scopeNote = sheet.addRow([
+    report.scope === 'all'
+      ? "Counted across the whole project, ignoring this export's filters"
+      : "Counted within this export's filters, but not hidden by any keyword exclusion",
+  ]);
+  scopeNote.getCell(1).font = { italic: true, color: { argb: 'FF6B7280' } };
+
+  const totalRow = sheet.addRow(['Total matching', report.total]);
+  totalRow.getCell(1).font = { bold: true };
+  totalRow.getCell(2).font = { bold: true };
+
+  if (report.total === 0) {
+    const none = sheet.addRow(['No work items matched this keyword']);
+    none.getCell(1).font = { italic: true, color: { argb: 'FF6B7280' } };
+    return;
+  }
+
+  const header = sheet.addRow(['State', 'Count']);
+  header.eachCell((cell, column) => {
+    if (column > 2) return;
+    cell.font = { bold: true, color: { argb: theme.headerText } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.headerFill } };
+  });
+
+  for (const entry of report.byState) sheet.addRow([entry.state, entry.count]);
 }
 
 function title(sheet: ExcelJS.Worksheet, text: string, theme: ExportTheme): void {

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 
-import { makeLookups, MEMBERSHIP, WORK_ITEMS } from '../filter/filter.fixtures';
+import { makeLookups, MEMBERSHIP, STATES, WORK_ITEMS } from '../filter/filter.fixtures';
 import type { LookupService } from '../lookup';
 import type { PlaneApiClient, PlaneProject } from '../plane';
 import { ExportService } from './export.service';
@@ -166,6 +166,102 @@ describe('ExportService', () => {
     const result = await service.export({ projects: ['ENG'] });
 
     expect(result.warnings.some((warning) => warning.includes('could not be resolved'))).toBe(true);
+  });
+
+  describe('keyword reports', () => {
+    const AI_MARKER = 'Detected by Felicia AI';
+
+    function withAiTickets() {
+      const dependencies = makeDependencies();
+      const base = WORK_ITEMS[0]!;
+
+      dependencies.plane.listAllWorkItems.mockResolvedValue([
+        ...WORK_ITEMS,
+        { ...base, id: 'ai-1', name: `Null check — ${AI_MARKER}`, state: STATES.doing.id },
+        { ...base, id: 'ai-2', name: `Unused import — ${AI_MARKER}`, state: STATES.done.id },
+      ]);
+
+      return dependencies;
+    }
+
+    async function summaryText(buffer: Buffer): Promise<string> {
+      const sheet = await sheetOf(buffer, 'Summary');
+      const parts: string[] = [];
+      sheet?.eachRow((row) => row.eachCell({ includeEmpty: false }, (cell) => parts.push(String(cell.value ?? ''))));
+      return parts.join(' | ');
+    }
+
+    it('counts matching work items on the summary sheet', async () => {
+      const { service } = makeService(withAiTickets());
+
+      const result = await service.export({ projects: ['ENG'], reportKeywords: [AI_MARKER] });
+
+      expect(await summaryText(result.buffer)).toContain(`Keyword report: "${AI_MARKER}"`);
+      expect(await summaryText(result.buffer)).toContain('Total matching');
+    });
+
+    it('still counts items that the same keyword excludes from the rows', async () => {
+      // The whole point: hiding AI-raised tickets from a human report must not zero out the
+      // tally of how many there were. These two options have to coexist.
+      const { service } = makeService(withAiTickets());
+
+      const result = await service.export({
+        projects: ['ENG'],
+        filter: { excludeKeywords: [AI_MARKER] },
+        reportKeywords: [AI_MARKER],
+      });
+
+      // Excluded from the rows...
+      expect(result.rowCount).toBe(WORK_ITEMS.length);
+
+      // ...but still counted, and broken down by state.
+      const text = await summaryText(result.buffer);
+      expect(text).toContain('In Progress');
+      expect(text).toMatch(/Total matching \| 2/);
+    });
+
+    it('respects the export filters by default', async () => {
+      const { service } = makeService(withAiTickets());
+
+      const result = await service.export({
+        projects: ['ENG'],
+        filter: { states: ['Done'] },
+        reportKeywords: [AI_MARKER],
+      });
+
+      // Only the Done AI ticket falls inside this export's window.
+      expect(await summaryText(result.buffer)).toMatch(/Total matching \| 1/);
+    });
+
+    it('counts across the whole project when the scope is "all"', async () => {
+      const { service } = makeService(withAiTickets());
+
+      const result = await service.export({
+        projects: ['ENG'],
+        filter: { states: ['Done'] },
+        reportKeywords: [AI_MARKER],
+        reportScope: 'all',
+      });
+
+      expect(await summaryText(result.buffer)).toMatch(/Total matching \| 2/);
+      expect(await summaryText(result.buffer)).toContain('ignoring this export');
+    });
+
+    it('says so plainly when nothing matched', async () => {
+      const { service } = makeService();
+
+      const result = await service.export({ projects: ['ENG'], reportKeywords: [AI_MARKER] });
+
+      expect(await summaryText(result.buffer)).toContain('No work items matched this keyword');
+    });
+
+    it('adds no section when no keyword was requested', async () => {
+      const { service } = makeService(withAiTickets());
+
+      const result = await service.export({ projects: ['ENG'] });
+
+      expect(await summaryText(result.buffer)).not.toContain('Keyword report');
+    });
   });
 
   it('gives each project its own tab', async () => {

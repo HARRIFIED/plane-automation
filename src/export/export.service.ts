@@ -12,6 +12,7 @@ import { describeFilter } from './filter-description';
 import { buildRows } from './export-row';
 import type { ExportRequest, ExportResult } from './export.types';
 import { parseGroupBy } from './grouping';
+import { KeywordReportBuilder } from './keyword-report';
 import { ProjectResolver } from './project-resolver';
 import { resolveTheme } from './theme';
 import { buildWorkbook } from './workbook-builder';
@@ -64,6 +65,11 @@ export class ExportService {
     const sheets: SheetData[] = [];
     let totalBeforeFilter = 0;
 
+    const reports = new KeywordReportBuilder(
+      request.reportKeywords ?? [],
+      request.reportScope ?? 'filtered',
+    );
+
     for (const project of projects) {
       const sheet = await this.buildProjectSheet({
         project,
@@ -73,6 +79,7 @@ export class ExportService {
         needsMembership,
         onUnmatched,
         warnings,
+        reports,
       });
 
       totalBeforeFilter += sheet.totalBeforeFilter;
@@ -89,6 +96,7 @@ export class ExportService {
         filterDescription: describeFilter(request.filter, { groupBy }),
         warnings,
         sheets,
+        keywordReports: reports.build(),
       },
     });
 
@@ -116,8 +124,9 @@ export class ExportService {
     needsMembership: boolean;
     onUnmatched: 'refuse' | 'warn';
     warnings: string[];
+    reports: KeywordReportBuilder;
   }): Promise<{ data: SheetData; totalBeforeFilter: number }> {
-    const { project, filter, forceRefresh, needsMembership, onUnmatched, warnings } = context;
+    const { project, filter, forceRefresh, needsMembership, onUnmatched, warnings, reports } = context;
 
     // Lookups first: filters are written in names, so they cannot be resolved without them.
     const lookups = await this.lookups.getLookups(project.id, { forceRefresh });
@@ -144,6 +153,22 @@ export class ExportService {
 
     const items = await this.plane.listAllWorkItems(project.id);
     const filtered = applyFilter(items, resolved, { membership });
+
+    if (!reports.isEmpty) {
+      // Counted BEFORE `excludeKeywords` has a say, otherwise asking to hide the AI-raised
+      // tickets and asking to report on them would cancel each other out — the report would
+      // always read zero, which is the one answer that looks plausible and is always wrong.
+      //
+      // Scope 'all' ignores every filter and counts across the whole project, which is what
+      // "how many has it raised in total" means. 'filtered' keeps the export's own window and
+      // answers "how many within this report".
+      const scoped =
+        reports.scope === 'all'
+          ? items
+          : applyFilter(items, { ...resolved, excludeKeywords: undefined }, { membership });
+
+      reports.addProject(scoped, lookups);
+    }
 
     const rows = buildRows(filtered, {
       project,

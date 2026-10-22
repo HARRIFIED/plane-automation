@@ -51,6 +51,14 @@ Exclusions (applied after the filters above, and always win):
 Dates accept YYYY-MM-DD, a full ISO timestamp, or a relative "7d" / "2w"
 (N days or weeks ago) — handy for a weekly export that never needs editing.
 
+Summary reports:
+  --report-keyword <text>    Add a counted breakdown to the summary tab: total,
+                             plus a count per state. Repeat for several.
+                             Works alongside --exclude-keyword: the same phrase
+                             can be hidden from the rows and still counted.
+  --report-scope <scope>     filtered (default) counts within this export's
+                             filters; all counts across the whole project.
+
 Layout:
   --group-by <field>         Split the sheet into sections: state, priority,
                              assignee, module or cycle. Sections are collapsible
@@ -92,6 +100,10 @@ Examples:
   npm run export -- --project ENG --group-by state \\
     --exclude-state Cancelled --exclude-keyword "Detected by AI"
 
+  # Weekly report, with a tally of AI-raised tickets kept out of the rows
+  npm run export -- --project ENG --updated-from 7d \\
+    --exclude-keyword "Detected by Felicia AI" --report-keyword "Detected by Felicia AI"
+
   # Same, in your own colours
   npm run export -- --project ENG --group-by state --header-color "#0F766E" --band-color "#F1F5F9"
 `;
@@ -120,6 +132,8 @@ async function main(): Promise<void> {
       out: { type: 'string' },
       columns: { type: 'string' },
       'group-by': { type: 'string' },
+      'report-keyword': { type: 'string', multiple: true },
+      'report-scope': { type: 'string' },
       'header-color': { type: 'string' },
       'header-text-color': { type: 'string' },
       'group-color': { type: 'string' },
@@ -162,6 +176,9 @@ async function main(): Promise<void> {
     filter,
     columns: values.columns?.split(',').map((column) => column.trim()),
     groupBy: values['group-by'],
+    // Not comma-split, for the same reason as --exclude-keyword: a phrase may contain one.
+    reportKeywords: values['report-keyword'],
+    reportScope: parseReportScope(values['report-scope']),
     theme: {
       headerColor: values['header-color'],
       headerTextColor: values['header-text-color'],
@@ -210,6 +227,15 @@ function finish(code: number): void {
 
   const backstop = setTimeout(() => process.exit(code), 2000);
   backstop.unref();
+}
+
+function parseReportScope(value: string | undefined): 'filtered' | 'all' | undefined {
+  if (!value) return undefined;
+
+  const scope = value.trim().toLowerCase();
+  if (scope === 'filtered' || scope === 'all') return scope;
+
+  throw new Error(`--report-scope must be "filtered" or "all", not "${value}"`);
 }
 
 function range(from?: string, to?: string): { from?: string; to?: string } | undefined {

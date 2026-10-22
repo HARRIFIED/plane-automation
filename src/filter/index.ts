@@ -1,4 +1,4 @@
-export { applyFilter } from './filter-engine';
+export { applyFilter, searchableText } from './filter-engine';
 export type { FilterContext } from './filter-engine';
 export { assertNoUnmatched, resolveFilter } from './filter-resolver';
 export { filterNeedsMembership, NONE_TOKENS, UNASSIGNED_TOKENS } from './filter.types';
